@@ -1,0 +1,75 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+import traceback
+
+def main():
+    # Inicializa Chrome (webdriver-manager descarga el driver correcto)
+    service = Service(ChromeDriverManager().install())
+    options = webdriver.ChromeOptions()
+    # options.add_argument("--headless")  # NO descomentar para la demo; queremos ver el navegador
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.maximize_window()
+    wait = WebDriverWait(driver, 12)
+
+    try:
+        # 1) Abrir la web de prueba
+        driver.get("http://automationpractice.com/index.php")
+        wait.until(EC.presence_of_element_located((By.ID, "search_query_top")))
+        driver.save_screenshot("01_home.png")
+
+        # 2) Buscar producto
+        search = driver.find_element(By.ID, "search_query_top")
+        search.clear()
+        search.send_keys("t-shirt")
+        search.send_keys(Keys.RETURN)
+        # esperar resultados
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "ul.product_list li")))
+        driver.save_screenshot("02_search_results.png")
+
+        # 3) Seleccionar primer producto
+        first = driver.find_element(By.CSS_SELECTOR, "ul.product_list li .product-name")
+        first.click()
+        # esperar que cargue la página del producto
+        wait.until(EC.presence_of_element_located((By.ID, "add_to_cart")))
+        driver.save_screenshot("03_product.png")
+
+        # 4) Agregar al carrito
+        add_div = driver.find_element(By.ID, "add_to_cart")
+        add_btn = add_div.find_element(By.TAG_NAME, "button")
+        add_btn.click()
+
+        # 5) Esperar la ventana modal de confirmación y proceder al checkout
+        wait.until(EC.visibility_of_element_located((By.ID, "layer_cart")))
+        driver.save_screenshot("04_added_modal.png")
+
+        # Botón "Proceed to checkout" en la modal
+        checkout = wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, "a.btn.btn-default.button.button-medium[title='Proceed to checkout']")))
+        checkout.click()
+
+        # 6) Validación en la página de carrito
+        wait.until(EC.presence_of_element_located((By.ID, "cart_summary")))
+        driver.save_screenshot("05_cart_summary.png")
+
+        rows = driver.find_elements(By.CSS_SELECTOR, "#cart_summary tbody .cart_item")
+        if len(rows) >= 1:
+            print("TEST PASSED: producto agregado al carrito.")
+        else:
+            print("TEST FAILED: carrito vacío.")
+
+    except Exception as e:
+        print("ERROR durante la ejecución:")
+        traceback.print_exc()
+        driver.save_screenshot("error_screenshot.png")
+    finally:
+        time.sleep(2)
+        driver.quit()
+
+if __name__ == "__main__":
+    main()
